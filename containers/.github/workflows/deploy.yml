@@ -1,0 +1,71 @@
+name: Deployment (Container)
+on:
+  push:
+    branches:
+      - main
+      - dev
+env:
+  CACHE_KEY: node-deps
+  MONGODB_DB_NAME: gha-demo
+jobs:
+  test:
+    environment: testing
+    # ubuntu-latest just HOSTS the machine with the container
+    # The steps running in the image will not have direct access to the machine and will not have
+    # direct access to the tools made available by that machine.
+    runs-on: ubuntu-latest
+    # We can use the "container" reserved keyword to use a docker container to run our workflow
+    # It will run all steps of this job insde this container based on the image (in this case, node:16)
+    # We can put it on one line (that is commented out) or if we need more info like environments, variables, etc
+    # we will split out out
+    # container: node:16
+    container:
+      image: node:16
+      # env: variables here would be specific to the docker container itself rather than the env used below
+    env:
+      MONGODB_CONNECTION_PROTOCOL: mongodb+srv
+      # cluster0.ntrwp.mongodb.net was our old address, but now that we're using a mongodb service
+      # below in "services", we can reference that name that we gave it: "mongodb"
+      MONGODB_CLUSTER_ADDRESS: mongodb
+      MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+      MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+      PORT: 8080
+    # "Services" is a reserved keyword specifying a service container to a specific job
+    # This service runs side-by-side while the other steps are executing
+    services:
+      # "mongodb" is our name
+      mongodb:
+        # These are now GH action keywords
+        image: mongo # this is an official image on Docker Hub
+        env:
+          # These are specific env keys to the image in Docker Hub
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: example
+    steps:
+      - name: Get Code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ env.CACHE_KEY }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Run server
+        run: npm start & npx wait-on http://127.0.0.1:$PORT # requires MongoDB Atlas to accept requests from anywhere!
+      - name: Run tests
+        run: npm test
+      - name: Output information
+        run: |
+          echo "MONGODB_USERNAME: $MONGODB_USERNAME"
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output information
+        env:
+          PORT: 3000
+        run: |        
+          echo "MONGODB_DB_NAME: $MONGODB_DB_NAME"
+          echo "MONGODB_USERNAME: $MONGODB_USERNAME"
+          echo "${{ env.PORT }}"
