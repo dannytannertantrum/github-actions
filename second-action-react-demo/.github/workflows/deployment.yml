@@ -1,0 +1,49 @@
+name: Deploy Project
+# We could just set it to "push", but if we want this workflow to be able to run manually as well,
+# we can use an array and add "workflow_dispatch"
+on: [push, workflow_dispatch]
+jobs:
+  # We can name our jobs whatever we want - "test" being our first job name
+  test:
+    # This server does not have our code (read below)
+    runs-on: ubuntu-latest
+    steps:
+      # Important to remember - these workflows run on servers - not at all related to our code and where it runs
+      # So in order for us to run tests, we need to tell the servers to grab all our code so it CAN be tested!
+      # "name" is a keyword and we name it whatever we want
+      - name: Get code
+        # This is an official action maintained by the GH team because it's so common: https://github.com/marketplace/actions/checkout
+        # We use the "uses" keyword to use actions
+        uses: actions/checkout@v3
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        # We could do "npm install", but "npm ci" is a feature that installs all the dependencies locked into the versions we specify in package.json
+        # It will ensure we use the exact same features we use during development (it's a bit safer)
+        run: npm ci
+      - name: Run tests
+        run: npm test
+  # Again, this is our own name because we're naming the second "job" here
+  deploy:
+    # "needs" is a reserved word
+    # Whatever job "needs" is set to means we will only run it if the "needs" job runs successfully
+    # For example, if tests fail, we do not want to deploy our app!
+    # It can also wait for multiple jobs like [test, job2, job3]
+    needs: test
+    # IMPORTANT - EACH JOB gets its own runner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build project
+        run: npm run build
+      - name: Deploy
+        run: echo "Deploying ..."

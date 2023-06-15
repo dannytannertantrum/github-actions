@@ -1,0 +1,45 @@
+name: Events Demo 1
+on:
+  # We can trigger workflows in more ways by looking at all the events available to us:
+  # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows
+  # For "pull_request" and each event, pay attention to the defaults
+  # Default here are "opened", "synchronize", and "reopened"
+  pull_request:
+    # Has to be "types"
+    types:
+      - opened
+    branches:
+      - main # main
+      - 'dev-*' # dev-new dev-this-is-new
+      - 'feat/**' # feat/new feat/new/button
+      # developer-1 would not work here
+  # We can add multiple ways to trigger a workflow
+  # "workflow_dispatch" is its own thing, so we need to write it on its own line and put a colon
+  # Even though it doesn't require anything after the colon
+  workflow_dispatch:
+  # Event filters: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#onpushbranchestagsbranches-ignoretags-ignore
+  push:
+    branches:
+      - main # main
+      - 'dev-*' # dev-new dev-this-is-new
+      - 'feat/**' # feat/new feat/new/button
+      # developer-1 would not work here
+    # We can ignore this workflow if a certain file/file path is pushed
+    paths-ignore:
+      - '.github/workflows/*'
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output event data
+        run: echo "${{ toJSON(github.event) }}"
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: npm ci
+      - name: Test code
+        run: npm run test
+      - name: Build code
+        run: npm run build
+      - name: Deploy project
+        run: echo "Deploying..."

@@ -1,0 +1,41 @@
+# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions
+# All actions require a metadata file. The metadata filename must be either action.yml or action.yaml.
+# The official YAML docs recommend .yaml, but .yml is fine, too
+name: 'Get & Cache Dependencies'
+# Actions don't need triggers because they are included in workflows. Therefore, we don't need "on" here
+# "description" is what shows up in the GitHub Actions Marketplace if we ever publicly publish it for use
+description: 'Get the dependencies (via npm) and cache them.'
+inputs:
+  # "caching" is our word and "description" is a required and reserved key word
+  caching:
+    description: 'Whether to cache dependencies or not'
+    # If we make "required" false, we need a "default" value
+    required: false
+    default: 'true'
+# We must use "runs", "using" and "composite" here! "composite" tells GH actions this is a composite action
+# The other two types of actions are JavaScript Actions and Docker Actions
+outputs:
+  # Our name is "used-cache"; the others are required keywords
+  used-cache:
+    description: 'Whether the cache was used.'
+    value: ${{ steps.install.outputs.cache }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Cache dependencies
+      # If set to "true" to match the default, then these steps will run. If the "if" evaluates to false
+      # then we don't run these Cache dependencies steps
+      if: inputs.caching == 'true'
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: node_modules
+        key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
+    - name: Install dependencies
+      id: install
+      if: steps.cache.outputs.cache-hit != 'true' || inputs.caching != 'true'
+      run: |
+        npm ci
+        echo "cache=${{ inputs.caching }}" >> $GITHUB_OUTPUT
+      # With custom composite actions and the "run" key, "shell" is required
+      shell: bash

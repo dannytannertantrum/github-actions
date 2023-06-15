@@ -1,0 +1,76 @@
+name: Deploy website
+on:
+  push:
+    branches:
+      - main
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          # Key is for retrieving the cache in the future and whether the cache should be discarded or recreated
+          # We create this name
+          # hashFiles will create a hash so if a new lock file gets created, GH Actions would know to run this again
+          key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint code
+        run: npm run lint
+      - name: Test code
+        run: npm run test
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    # Outputs are files/things we want access to (e.g. our dist/assets js file)
+    # We make up our own names and can generate/save whatever we want
+    outputs:
+      # steps is a special context value that gives us access to our steps
+      script-file: ${{ steps.publish.outputs.script-file }} # "script-file here has to match line 36"
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Build website
+        run: npm run build
+      - name: Publish JS filename
+        id: publish
+        # Linux command to find our JS file: find dist/assets/*.js -type f -execdir echo '{}' ';'
+        run: find dist/assets/*.js -type f -execdir echo 'script-file={}' >> $GITHUB_OUTPUT ';'
+      # This is the step to upload our artifacts to be used
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist-files
+          path: dist
+          # We use the Pipe | for multi-line instructions
+          # We could just put everything in "dist", but we're doing this as an example to show it will download the "dist" folder
+          # AND the package.json file
+          # path: |
+          #   dist
+          #   package.json
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          # We need to name this the same as upload above
+          name: dist-files
+      - name: Output contents
+        run: ls
+      - name: Output filename
+        run: echo "${{ needs.build.outputs.script-file }}"
+      - name: Deploy
+        run: echo "Deploying..."

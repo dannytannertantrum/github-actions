@@ -1,0 +1,29 @@
+name: Label Issues (Permissions Example)
+on:
+  issues:
+    types:
+      - opened
+jobs:
+  assign-label:
+    # Without explicitly stating permissions, the workflow has permissions to do anything and everything
+    # Because if we're using 3rd party scripts, we are taking all permissions away except this write permission
+    # It doesn't protect against everything, but it adds an additional layer of protection
+    # against things like script injection
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign label
+        if: contains(github.event.issue.title, 'bug')
+        # The scope of the token in secrets.GITHUB_TOKEN must match the permission we write above
+        # So if someone wants to create an issue, they need a token and matching credentials
+        # E.g. if the permission was only set to "read", users wouldn't be able to add the "bug" label through the run command
+        run: |
+          curl -X POST \
+          --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels \
+          -H 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          -H 'content-type: application/json' \
+          -d '{
+              "labels": ["bug"]
+            }' \
+          --fail

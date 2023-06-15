@@ -1,0 +1,12 @@
+name: Output Information
+on: workflow_dispatch
+jobs:
+  info:
+    runs-on: ubuntu-latest
+    steps:
+      # GH Actions creates context data about the trigger, runner, etc. that we can access
+      - name: Output GitHub context
+        # ${{}} syntax tells GitHub this shouldn't be treated as text, but it should access metadata availabe by GH
+        # Here's other context names available: https://docs.github.com/en/actions/learn-github-actions/contexts (e.g. github, jobs, env)
+        # Here's expressions: https://docs.github.com/en/actions/learn-github-actions/expressions (e.g. functions like toJSON())
+        run: echo "${{ toJSON(github) }}"

@@ -1,0 +1,54 @@
+name: Deployment
+on:
+  push:
+    branches:
+      - main
+      - dev
+# Env can be on the workflow level, job level or even the "step" level
+env:
+  # This will be available in all jobs unless the job overrides it
+  MONGODB_DB_NAME: gha-demo
+jobs:
+  test:
+    env:
+      MONGODB_CLUSTER_ADDRESS: fake.address.mongodb.net
+      # We add secrets in GH
+      # When we output secrets, GH is smart and outputs *** in case we ever accidentally output them
+      # Like we're doing below in our "Output Information" step
+      MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+      MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+      PORT: 8080
+    environment: testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      # Commenting out because I'm not actually using MongoDB (didn't want to sign up)
+      # - name: Run server
+      # In a linux shell, we use the $ syntax to output an env variable (e.g. $PORT)
+      # run: npm start & npx wait-on http://127.0.0.1:$PORT
+      # - name: Run tests
+      #   run: npm test
+      - name: Output information
+        # The env object is a GH Actions specific keyword giving us access to all env variables
+        # available to us in the job, step or workflow
+        run: |
+          echo "MONGODB_USERNAME: ${{ env.MONGODB_USERNAME }}"
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output information
+        # DON'T DO THIS!!
+        # This is demonstrating the 1st env will NOT be available because that env variable is only in the job
+        # The second env WILL and we can use either way of outputting the value ($NAME or ${{ NAME }})
+        run: |
+          echo "MONGODB_USERNAME: ${{ env.MONGODB_USERNAME }}"
+          echo "MONGODB_DB_NAME: $MONGODB_DB_NAME"
