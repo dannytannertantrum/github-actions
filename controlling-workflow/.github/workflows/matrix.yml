@@ -1,0 +1,35 @@
+# The idea of a matrix is to run the same job(s) with different configurations
+  # For example we could run with different runners, node versions, etc.
+  # We do that by adding "strategy" and "matrix"
+name: Matrix Demo
+on: push
+jobs:
+  build:
+    continue-on-error: true
+    strategy:
+      matrix:
+        node-version: [12, 14, 16]
+        operating-system: [ubuntu-latest, windows-latest]
+        # Add a single combination more specifically (e.g. only run on ubuntu-latest)
+        include:
+          - node-version: 18
+            operating-system: ubuntu-latest
+        # Tell a single combination more specifically (e.g. only run on ubuntu-latest) not to run
+        exclude:
+          - node-version: 12
+            operating-system: windows-latest
+    # The "matrix" context object is provided by GH actions
+    # This tells us to run the build job once per value in the list of operating systems
+    # They get run in parallel by default
+    runs-on: ${{ matrix.operating-system }}
+    steps:
+      - name: Get Code
+        uses: actions/checkout@v3
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install Dependencies
+        run: npm ci
+      - name: Build project
+        run: npm run build

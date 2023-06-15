@@ -1,0 +1,40 @@
+name: Reusable Deploy
+# workflow_call allows this to be used in other workflows
+on:
+  workflow_call:
+    # "inputs" is a reserved keyword, but "artifact-name" is something we create
+    inputs:
+      artifact-name:
+        description: The name of the deployable artifact files
+        # Should this workflow fail if we don't get the artifact?
+        required: false
+        # If we didn't acquire any other value, "dist" is what we should use for our "name" below on line 20
+        default: dist
+        type: string
+    outputs:
+      result:
+        description: The result of the deployment operation
+        value: ${{ jobs.deploy.outputs.outcome }}
+    # If we wanted to use secrets, this is how it would be done. Check the use-reuse.yml file, too
+    # secrets:
+    #   some-secret:
+    #     required: true
+jobs:
+  deploy:
+    # "outputs" is reserved but "outcome" and "result" are not - we name those ourselves
+    outputs:
+      outcome: ${{ steps.set-result.outputs.step-result }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Code
+        uses: actions/download-artifact/@v3
+        with:
+          # "inputs" is a context object from GH actions
+          name: ${{ inputs.artifact-name }}
+      - name: List files
+        run: ls
+      - name: Output information
+        run: echo "Deploying & uploading..."
+      - name: Set result output
+        id: set-result
+        run: echo "step-result=success" >> $GITHUB_OUTPUT
